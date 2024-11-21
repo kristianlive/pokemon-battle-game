@@ -6,6 +6,9 @@ const Game = () => {
   const [playerHealth, setPlayerHealth] = useState(100);
   const [enemyHealth, setEnemyHealth] = useState(100);
   const pikachuRef = useRef(null);
+  const enemyRef = useRef(null);
+  const isAttacking = useRef(false); // Флаг для отслеживания атаки
+  const enemyHit = useRef(false);    // Флаг для отслеживания нанесения урона
   let cursors;
   let enemy;  // Объявляем переменную enemy на уровне useEffect
 
@@ -72,13 +75,15 @@ const Game = () => {
       pikachu.on('animationcomplete', (animation) => {
         if (animation.key === 'attack') {
           pikachu.play('idle'); // Возвращаемся к "idle" после атаки
+          isAttacking.current = false; // Сбрасываем флаг атаки
+          enemyHit.current = false;    // Сбрасываем флаг нанесения урона
         }
       });
-      
 
       // Создаем врага
       enemy = this.add.rectangle(900, 400, 50, 50, 0xff0000);
       this.physics.add.existing(enemy);
+      enemyRef.current = enemy;
 
       // Настройка клавиш управления
       cursors = this.input.keyboard.createCursorKeys();
@@ -88,6 +93,26 @@ const Game = () => {
       if (pikachuRef.current && cursors) {
         characterControls(pikachuRef.current, cursors, { walk: 'walk', idle: 'idle' });
       }
+
+      // Проверка коллизии во время атаки
+      if (isAttacking.current && pikachuRef.current && enemyRef.current) {
+        const pikachuX = pikachuRef.current.x;
+        const pikachuY = pikachuRef.current.y;
+        const enemyX = enemyRef.current.x;
+        const enemyY = enemyRef.current.y;
+
+        // Вычисляем расстояние между Пикачу и врагом
+        const distance = Phaser.Math.Distance.Between(pikachuX, pikachuY, enemyX, enemyY);
+        const attackRange = 150; // Настройте это значение по вашему усмотрению
+
+        if (distance <= attackRange) {
+          if (!enemyHit.current) {
+            // Уменьшаем здоровье противника
+            setEnemyHealth(prev => Math.max(prev - 10, 0));
+            enemyHit.current = true; // Урон нанесен, предотвращаем повторное нанесение
+          }
+        }
+      }
     }
 
     return () => {
@@ -96,16 +121,12 @@ const Game = () => {
   }, []);
 
   const handlePlayerAttack = () => {
-    // Уменьшаем здоровье противника
-    setEnemyHealth(prev => Math.max(prev - 10, 0));
-  
     if (pikachuRef.current) {
       // Проигрываем анимацию атаки
       pikachuRef.current.play('attack', true);
+      isAttacking.current = true; // Устанавливаем флаг атаки
     }
   };
-  
-  
 
   return (
     <div>
